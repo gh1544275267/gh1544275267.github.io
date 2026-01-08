@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>饶梁群杰 | 手绘 3D 作品集</title>
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #fdfaf2; /* 更温润的纸张色 */
+            --pencil-color: #2b2b2b;
+            --accent-color: #d94646;
+            --tape-color: rgba(210, 180, 140, 0.4);
+            --ink-color: rgba(43, 43, 43, 0.8);
+        }
+
+        body, html { margin: 0; padding: 0; width: 100%; scroll-behavior: smooth; background-color: var(--bg-color); font-family: 'Patrick Hand', 'ZCOOL KuaiLe', cursive; color: var(--pencil-color); overflow-x: hidden; cursor: none; /* 隐藏默认光标使用自定义 */ }
+
+        /* 自定义手绘光标 */
+        #custom-cursor {
+            width: 20px; height: 20px; border: 1.5px solid var(--pencil-color); border-radius: 50%;
+            position: fixed; pointer-events: none; z-index: 100000; transition: transform 0.15s ease-out;
+            mix-blend-mode: multiply; filter: url(#squiggly-0);
+        }
+        .cursor-hover { transform: scale(2.5); background: var(--accent-color); opacity: 0.2; }
+
+        /* 点击墨水特效 */
+        .ink-splash {
+            position: fixed; width: 8px; height: 8px; background: var(--pencil-color); border-radius: 50%;
+            pointer-events: none; z-index: 99999; animation: splash-anim 0.6s ease-out forwards;
+        }
+        @keyframes splash-anim {
+            to { transform: scale(5); opacity: 0; }
+        }
+
+        /* 噪点背景层 */
+        .paper-canvas { position: relative; width: 100%; background-color: var(--bg-color); }
+        .paper-canvas::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.12'/%3E%3C/svg%3E"); pointer-events: none; z-index: 10000; }
+
+        .reveal { opacity: 0; transform: translateY(40px); transition: all 1s cubic-bezier(0.2, 1, 0.3, 1); }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+
+        /* --- 1. 原有的 3D 舞台区域 (保持不变) --- */
+        #stage { perspective: 2000px; width: 100%; height: 110vh; display: flex; justify-content: center; align-items: center; position: relative; overflow: visible; }
+        #world { position: relative; width: 100vw; height: 100vh; transform-style: preserve-3d; -webkit-transform-style: preserve-3d; transition: transform 0.4s ease-out; pointer-events: none; }
+        .card { position: absolute; cursor: pointer; transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); transform-style: preserve-3d; -webkit-transform-style: preserve-3d; width: 220px; pointer-events: auto; }
+        .card-inner { position: relative; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; -webkit-transform-style: preserve-3d; }
+        .card.focused { z-index: 9999 !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) translateZ(600px) scale(1.8) rotate(0deg) !important; }
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .card-front, .card-back { grid-area: 1 / 1 / 2 / 2; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: white; border: 2px solid var(--pencil-color); box-shadow: 10px 10px 0px rgba(0,0,0,0.05); filter: url(#squiggly-0); padding: 8px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .card-front img { width: 100%; height: auto; display: block; filter: grayscale(100%); transition: 0.3s; }
+        .card.focused .card-front img { filter: grayscale(0%); }
+        .card-back { transform: rotateY(180deg); background: #fffef0; justify-content: center; text-align: center; border: 2px solid var(--accent-color); overflow: hidden; }
+        .click-hint { position: absolute; bottom: -30px; left: 0; width: 100%; text-align: center; font-size: 0.8rem; color: var(--accent-color); opacity: 0; transition: 0.3s; }
+        .card.focused:not(.flipped) .click-hint { opacity: 1; bottom: -25px; }
+
+        /* --- 2. 理念：多层视差优化 --- */
+        .section-concept { min-height: 90vh; display: flex; align-items: center; justify-content: center; padding: 50px 20px; position: relative; }
+        .concept-container { position: relative; max-width: 800px; width: 100%; }
+        .concept-paper { background: white; padding: 60px; border: 2px solid var(--pencil-color); filter: url(#squiggly-2); box-shadow: 15px 15px 0px rgba(0,0,0,0.03); position: relative; z-index: 2; border-radius: 5px 20px 5px 25px / 25px 5px 20px 5px; }
+        .draft-paper { position: absolute; background: #eee; border: 1px solid #ccc; padding: 15px; font-size: 0.9rem; transform: rotate(-8deg); top: -40px; left: -30px; z-index: 1; opacity: 0.7; filter: url(#squiggly-1); }
+        .concept-h2 { font-size: 3.5rem; color: var(--accent-color); margin-top: 0; border-bottom: 3px double #ccc; display: inline-block; }
+        .concept-text { font-size: 1.6rem; line-height: 1.8; margin-top: 30px; }
+
+        /* --- 3. 技能：排线质感优化 --- */
+        .section-skills { padding: 100px 20px; background: rgba(255,255,255,0.2); }
+        .skills-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; max-width: 1000px; margin: 50px auto; }
+        .skill-item { background: white; padding: 30px; border: 2px solid var(--pencil-color); filter: url(#squiggly-1); transition: 0.3s; border-radius: 10px; }
+        .skill-item:hover { transform: translateY(-5px) rotate(1deg); box-shadow: 10px 10px 0px rgba(0,0,0,0.05); }
+        .skill-bar-bg { height: 18px; border: 2px solid var(--pencil-color); margin-top: 15px; background: transparent; overflow: hidden; position: relative; }
+        .skill-bar-fill { 
+            height: 100%; background: var(--pencil-color); width: 0; transition: width 1.5s cubic-bezier(0.1, 0, 0.2, 1); 
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.4) 2px, rgba(255,255,255,0.4) 4px);
+        }
+
+        /* --- 4. 历程：动态印章优化 --- */
+        .section-timeline { padding: 100px 20px; }
+        .timeline-container { position: relative; max-width: 700px; margin: 40px auto; border-left: 3px dashed var(--pencil-color); padding-left: 40px; }
+        .timeline-node { position: relative; margin-bottom: 80px; }
+        .timeline-node::before { content: ""; position: absolute; left: -54px; top: 15px; width: 24px; height: 24px; background: var(--bg-color); border: 3px solid var(--accent-color); border-radius: 50%; z-index: 2; }
+        .node-content { background: white; padding: 30px; border: 2px solid var(--pencil-color); filter: url(#squiggly-0); position: relative; }
+        .stamp-status { position: absolute; right: 20px; top: 15px; border: 3px double var(--accent-color); color: var(--accent-color); padding: 4px 12px; font-weight: bold; transform: rotate(15deg) scale(2); opacity: 0; transition: 0.6s cubic-bezier(0.17, 0.89, 0.32, 1.49); }
+        .reveal.active .stamp-status { opacity: 0.5; transform: rotate(15deg) scale(1); }
+
+        /* --- 5. 联系我：记事本风格 --- */
+        #contact-section { min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 80px 20px; }
+        .notebook-card { background: white; width: 100%; max-width: 750px; padding: 60px; border: 2px solid var(--pencil-color); filter: url(#squiggly-2); position: relative; box-shadow: 20px 20px 0px rgba(0,0,0,0.05); display: grid; grid-template-columns: 200px 1fr; gap: 40px; }
+        .notebook-card::before { content: ""; position: absolute; left: 30px; top: 0; bottom: 0; width: 2px; background: rgba(217, 70, 70, 0.2); border-left: 1px solid rgba(217, 70, 70, 0.2); }
+        .avatar-frame { width: 180px; height: 180px; border: 2px solid var(--pencil-color); overflow: hidden; filter: url(#squiggly-0); transform: rotate(-3deg); background: #eee; }
+        .avatar-frame img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%) contrast(1.2); }
+        .hand-btn { display: inline-block; padding: 12px 25px; border: 2px solid var(--pencil-color); text-decoration: none; color: var(--pencil-color); margin: 10px 10px 0 0; transition: 0.3s; filter: url(#squiggly-1); position: relative; background: white; }
+        .hand-btn:hover { background: var(--pencil-color); color: white; transform: translateY(-3px) rotate(2deg); }
+
+        .sketchy-filter { position: absolute; width: 0; height: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="custom-cursor"></div>
+
+    <svg class="sketchy-filter">
+        <defs>
+            <filter id="squiggly-0"><feTurbulence baseFrequency="0.02" numOctaves="3" result="noise" seed="0"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="3" /></filter>
+            <filter id="squiggly-1"><feTurbulence baseFrequency="0.04" numOctaves="2" result="noise" seed="1"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="4" /></filter>
+            <filter id="squiggly-2"><feTurbulence baseFrequency="0.015" numOctaves="3" result="noise" seed="2"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="5" /></filter>
+        </defs>
+    </svg>
+
+    <div class="paper-canvas">
+        <!-- 第一部分：3D 舞台 (核心逻辑保留) -->
+        <div id="stage">
+            <div id="world">
+                <!-- 中心卡片 -->
+                <div class="card" style="top:35%; left:42%;" data-z="300" data-r="-2">
+                    <div class="card-inner">
+                        <div class="card-front" style="background:var(--pencil-color); color:white; justify-content:center; align-items:center;">
+                            <h2 style="margin:0; font-size:2rem; text-align:center;">MY PORTFOLIO</h2>
+                            <p style="font-size:0.8rem;">RAO LIANG QUN JIE</p>
+                        </div>
+                        <div class="card-back"><h3>Welcome</h3><p>点击卡片进行交互。</p></div>
+                    </div>
+                    <div class="click-hint">再次点击翻转 ↑</div>
+                </div>
+
+                <!-- 作品卡片 1-18 -->
+                <div class="card" style="top:10%; left:15%;" data-z="-300" data-r="-12"><div class="card-inner"><div class="card-front"><img src="神农架IP3.jpg"></div><div class="card-back"><h3>神农架IP</h3><p>湖北省文创比赛参赛作品。</p></div></div></div>
+                <div class="card" style="top:15%; left:70%;" data-z="-150" data-r="10"><div class="card-inner"><div class="card-front"><img src="sheji5.jpg"></div><div class="card-back"><h3>童年遗梦</h3><p>视觉插画练习。</p></div></div></div>
+                <div class="card" style="top:65%; left:15%;" data-z="100" data-r="15"><div class="card-inner"><div class="card-front"><img src="活着.png"></div><div class="card-back"><h3>活着</h3><p>情感系列插画。</p></div></div></div>
+                <div class="card" style="top:5%; left:5%;" data-z="-650" data-r="-18"><div class="card-inner"><div class="card-front"><img src="龙.png"></div><div class="card-back"><h3>龙</h3><p>传统元素练习。</p></div></div></div>
+                <div class="card" style="top:2%; left:48%;" data-z="-400" data-r="5"><div class="card-inner"><div class="card-front"><img src="录取通知书（正）.png"></div><div class="card-back"><h3>录取通知书</h3><p>平面设计方案。</p></div></div></div>
+                <div class="card" style="top:8%; left:82%;" data-z="-200" data-r="12"><div class="card-inner"><div class="card-front"><img src="女射手.jpg"></div><div class="card-back"><h3>女射手</h3><p>速涂练习。</p></div></div></div>
+                <div class="card" style="top:42%; left:3%;" data-z="250" data-r="-10"><div class="card-inner"><div class="card-front"><img src="神舟航天任务psd.jpg"></div><div class="card-back"><h3>神舟航天任务</h3><p>致敬航天精神。</p></div></div></div>
+                <div class="card" style="top:30%; left:22%;" data-z="100" data-r="6"><div class="card-inner"><div class="card-front"><img src="命案1.png"></div><div class="card-back"><h3>案发现场</h3><p>叙事插画。</p></div></div></div>
+                <div class="card" style="top:55%; left:62%;" data-z="150" data-r="-4"><div class="card-inner"><div class="card-front"><img src="云锦龙纹背包.png"></div><div class="card-back"><h3>云锦龙纹背包</h3><p>文创产品设计。</p></div></div></div>
+                <div class="card" style="top:35%; left:92%;" data-z="-550" data-r="25"><div class="card-inner"><div class="card-front"><img src="写生作业.jpg"></div><div class="card-back"><h3>西递IP</h3><p>写生与IP设计。</p></div></div></div>
+                <div class="card" style="top:78%; left:8%;" data-z="-150" data-r="-22"><div class="card-inner"><div class="card-front"><img src="yunlingzi.jpg"></div><div class="card-back"><h3>云灵子</h3><p>灵山文创设计。</p></div></div></div>
+                <div class="card" style="top:85%; left:40%;" data-z="300" data-r="2"><div class="card-inner"><div class="card-front"><img src="骷髅.jpg"></div><div class="card-back"><h3>头骨雕刻</h3><p>ZBrush雕刻练习。</p></div></div></div>
+                <div class="card" style="top:82%; left:85%;" data-z="-700" data-r="15"><div class="card-inner"><div class="card-front"><img src="神农架未命名.png"></div><div class="card-back"><h3>小狐狸延展</h3><p>Blender场景练习。</p></div></div></div>
+                <div class="card" style="top:15%; left:30%;" data-z="-800" data-r="-30"><div class="card-inner"><div class="card-front"><img src="个人品牌.jpg"></div><div class="card-back"><h3>个人品牌</h3><p>视觉识别设计。</p></div></div></div>
+                <div class="card" style="top:25%; left:68%;" data-z="350" data-r="-8"><div class="card-inner"><div class="card-front"><img src="风扇.jpg"></div><div class="card-back"><h3>风扇结构</h3><p>工业素描。</p></div></div></div>
+                <div class="card" style="top:20%; left:65%;" data-z="-100" data-r="10"><div class="card-inner"><div class="card-front"><img src="足踝.png"></div><div class="card-back"><h3>解剖结构</h3><p>结构研究。</p></div></div></div>
+                <div class="card" style="top:95%; left:70%;" data-z="-450" data-r="-12"><div class="card-inner"><div class="card-front"><img src="书包设计.jpg"></div><div class="card-back"><h3>模块化背包</h3><p>工业设计。 </p></div></div></div>
+                <div class="card" style="top:-5%; left:25%;" data-z="-200" data-r="20"><div class="card-inner"><div class="card-front"><img src="龙舟队服.jpg"></div><div class="card-back"><h3>龙舟队服</h3><p>服装图案设计。</p></div></div></div>
+            </div>
+        </div>
+
+        <!-- 第二部分：优化后的板块 -->
+        <section class="section-concept">
+            <div class="concept-container">
+                <div class="draft-paper reveal" id="parallax-draft">
+                    <p>草案 #01: 线条与温度的实验</p>
+                </div>
+                <div class="concept-paper reveal">
+                    <div class="tape-style"></div>
+                    <h2 class="concept-h2">PHILOSOPHY / 理念</h2>
+                    <p class="concept-text">“将手绘的温度刻入数字的纹理。”<br>在我的创作中，我追求线条的自由与结构的严谨共存。每一个作品都是一次对视觉语言的重新编排。</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-skills">
+            <h2 class="hand-h1 reveal" style="text-align:center; display:block;">SKILLS / 技能军火库</h2>
+            <div class="skills-grid">
+                <div class="skill-item reveal">
+                    <h3>2D 插画 & 视觉表现 (PS/AI)</h3>
+                    <div class="skill-bar-bg"><div class="skill-bar-fill" data-width="95%"></div></div>
+                </div>
+                <div class="skill-item reveal">
+                    <h3>3D 建模与雕刻 (ZB/Blender)</h3>
+                    <div class="skill-bar-bg"><div class="skill-bar-fill" data-width="85%"></div></div>
+                </div>
+                <div class="skill-item reveal">
+                    <h3>品牌视觉 & 文创产品设计</h3>
+                    <div class="skill-bar-bg"><div class="skill-bar-fill" data-width="90%"></div></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-timeline">
+            <h2 class="hand-h1 reveal" style="margin-left:20px;">JOURNEY / 历程</h2>
+            <div class="timeline-container">
+                <div class="timeline-node reveal">
+                    <div class="node-content">
+                        <div class="stamp-status">PASSED</div>
+                        <span class="node-date">2024</span>
+                        <h3>毕业设计 - 《云锦系列》</h3>
+                        <p>完成全系列文创产品开发与视觉设计。探索传统非遗的现代化表达。</p>
+                    </div>
+                </div>
+                <div class="timeline-node reveal">
+                    <div class="node-content">
+                        <div class="stamp-status">WINNER</div>
+                        <span class="node-date">2023</span>
+                        <h3>省赛佳绩</h3>
+                        <p>神农架IP系列获得省级文创比赛一等奖，并被相关部门收录。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact-section">
+            <div class="notebook-card reveal">
+                <div class="profile-img-container">
+                    <div class="avatar-frame"><img src="https://picsum.photos/200/200?grayscale" alt="Avatar"></div>
+                </div>
+                <div class="profile-text">
+                    <h1 class="hand-h1">你好，我是饶梁群杰</h1>
+                    <p>感谢你翻阅这本数字画册。如果你对我的作品感兴趣，或者有合作意向，欢迎通过以下方式找到我。</p>
+                    <div class="btn-group">
+                        <a href="#" class="hand-btn">个人简历 (PDF)</a>
+                        <a href="mailto:1544275267@qq.com" class="hand-btn">1544275267@qq.com</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const world = document.getElementById('world');
+        const cards = document.querySelectorAll('.card');
+        const cursor = document.getElementById('custom-cursor');
+
+        // 1. 手绘光标与交互
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX - 10 + 'px';
+            cursor.style.top = e.clientY - 10 + 'px';
+            
+            // 3D 舞台视差 (原逻辑)
+            if (window.scrollY < window.innerHeight * 0.9) {
+                const x = (e.clientX - window.innerWidth / 2) / (window.innerWidth / 2);
+                const y = (e.clientY - window.innerHeight / 2) / (window.innerHeight / 2);
+                world.style.transform = `rotateY(${x * 12}deg) rotateX(${-y * 12}deg)`;
+            }
+        });
+
+        // 悬停反馈
+        document.querySelectorAll('a, .card, .skill-item').forEach(el => {
+            el.addEventListener('mouseenter', () => cursor.classList.add('cursor-hover'));
+            el.addEventListener('mouseleave', () => cursor.classList.remove('cursor-hover'));
+        });
+
+        // 2. 点击墨水效果
+        document.addEventListener('click', (e) => {
+            const splash = document.createElement('div');
+            splash.className = 'ink-splash';
+            splash.style.left = e.clientX + 'px';
+            splash.style.top = e.clientY + 'px';
+            document.body.appendChild(splash);
+            setTimeout(() => splash.remove(), 600);
+        });
+
+        // 3. 3D 卡片交互逻辑 (完全保留)
+        cards.forEach(card => {
+            resetCardStyle(card);
+            card.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isFocused = card.classList.contains('focused');
+                const isFlipped = card.classList.contains('flipped');
+                if (!isFocused) {
+                    cards.forEach(c => { c.classList.remove('focused', 'flipped'); resetCardStyle(c); });
+                    card.classList.add('focused');
+                } else if (!isFlipped) {
+                    card.classList.add('flipped');
+                } else {
+                    card.classList.remove('focused', 'flipped');
+                    resetCardStyle(card);
+                }
+            });
+        });
+
+        function resetCardStyle(card) {
+            if (card.classList.contains('focused')) return;
+            const z = parseInt(card.getAttribute('data-z')) || 0;
+            const r = parseInt(card.getAttribute('data-r')) || 0;
+            card.style.zIndex = z + 1000;
+            card.style.transform = `translateZ(${z}px) rotate(${r}deg)`;
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.card')) {
+                cards.forEach(c => { c.classList.remove('focused', 'flipped'); resetCardStyle(c); });
+            }
+        });
+
+        // 4. 滚动视差与进入动画
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    const bar = entry.target.querySelector('.skill-bar-fill');
+                    if (bar) bar.style.width = bar.getAttribute('data-width');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // 理念板块的轻微视差
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const draft = document.getElementById('parallax-draft');
+            if(draft) draft.style.transform = `rotate(-8deg) translateY(${scrolled * 0.05}px)`;
+        });
+    </script>
+</body>
+</html>
